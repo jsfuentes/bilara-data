@@ -5,3 +5,7 @@
 !config/*.json
 !*.py
 !.gitignore
+
+# Virtual Environment
+venv/
+**/venv/

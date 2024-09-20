@@ -1,2 +1,6 @@
 */*
 html
+
+# Virtual Environment
+venv/
+**/venv/
