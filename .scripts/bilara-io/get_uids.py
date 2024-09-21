@@ -20,7 +20,7 @@ def get_publication_objects():
     return publication_objects
 
 
-def process_uid_data(uid: str) -> List[Tuple[int, str]]:
+def process_uid_data(uid: str, publication_objects: List[dict]) -> List[Tuple[int, str]]:
     repo_dir = pathlib.Path("/Users/jfuentes/Projects/B2Soul/bilara-data")
     include_filter = {frozenset(filter.split(
         '+')) if '+' in filter else filter for filter in "root,translation+en".split(',')}
@@ -34,9 +34,14 @@ def process_uid_data(uid: str) -> List[Tuple[int, str]]:
     result = []
     for row in content:
         for header, value in zip(headers, row):
+            creator_uid = "-".join(header.split('-')[2:])
             if "translation" in header and "en" in header and value:
-                result.append(((row[0], header), value.strip()))
-                break
+                matching_publication = [obj for obj in publication_objects if obj['text_uid'] ==
+                                        uid and obj['creator_uid'] == creator_uid and obj['translation_lang_iso'] == "en"]
+                if len(matching_publication) == 1:
+                    result.append(
+                        ((matching_publication[0], row[0]), value.strip()))
+                    break
 
     return result
 
@@ -53,25 +58,24 @@ if __name__ == "__main__":
     for uid in unique_uids:
         print(f"Processing UID: {uid}")
         try:
-            processed_data = process_uid_data(uid)
+            processed_data = process_uid_data(uid, publication_objects)
             if processed_data:
-                num_lines = len(processed_data)
-                total_processed_lines += num_lines
-                print(f"Number of lines processed: {num_lines}")
-                if num_lines > 0:
-                    print(f"First line: {processed_data[0]}")
-                if num_lines > 1:
-                    print(f"Second line: {processed_data[1]}")
-                if num_lines > 2:
-                    print(f"Third line: {processed_data[2]}")
-                if num_lines > 3:
-                    print(f"Fourth line: {processed_data[3]}")
-                if num_lines > 4:
-                    print(f"Fifth line: {processed_data[4]}")
-                if num_lines > 5:
-                    print(f"Last line: {processed_data[-1]}")
-            else:
-                print("No data processed for this UID.")
+                output_data = []
+
+                for (publication, verse_id), content in processed_data:
+                    output_data.append({
+                        "verse_id": verse_id,
+                        "verse_text": content,
+                        "book": publication.get('root_title', ''),
+                        "translation": ', '.join(publication.get('creator_name', '')) if isinstance(publication.get('creator_name', ''), list) else publication.get('creator_name', '') or publication.get('translation_title', '')
+                    })
+
+                publication_title = publication.get('root_title', '')
+                output_file_path = f"{publication_title}.json"
+                with open(output_file_path, 'w', encoding='utf-8') as f:
+                    json.dump(output_data, f, ensure_ascii=False, indent=4)
+
+                print(f"Data for UID {uid} written to {output_file_path}")
         except Exception as e:
             print(f"Error processing UID {uid}: {str(e)}")
             processed_data = []
